@@ -1,26 +1,24 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Header } from './components/Header'
 import { Home } from './pages/Home'
-import { Manage } from './pages/Manage'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-[#fafafa] flex flex-col">
+      <div className="flex min-h-screen flex-col bg-[#0B0F19]">
         <Header />
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/manage" element={<Manage />} />
           </Routes>
         </main>
 
-        <footer className="border-t border-neutral-200">
-          <div className="mx-auto max-w-5xl px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-neutral-400">
+        <footer className="border-t border-[#2D3748]">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-sm text-[#64748B] sm:flex-row">
             <p>
-              <span className="font-medium text-neutral-600">LinkForge</span> — Acortador open source
+              © 2026 <span className="font-medium text-[#94A3B8]">LinkForge</span> · Open Source
             </p>
-            <p>FastAPI · React · Tailwind</p>
+            <p className="text-xs">FastAPI · React · Tailwind</p>
           </div>
         </footer>
       </div>

@@ -1,63 +1,39 @@
 # LinkForge Frontend
 
-Frontend moderno para el acortador de URLs **LinkForge**.
+Frontend oscuro estilo **red / nodos** para el acortador LinkForge.
 
 ## Stack
 
-- **React 19** + **TypeScript**
-- **Vite 6**
-- **Tailwind CSS 4**
-- **Framer Motion** (animaciones)
-- **Lucide React** (iconos)
-- **React Router** + **Axios**
+- React 19 + TypeScript + Vite
+- Tailwind CSS 4
+- Framer Motion
+- Lucide React
+- Axios
 
 ## Diseño
 
-- Estilo limpio inspirado en Notion
-- Tema: redes / dominios / links
-- Totalmente responsive
-- Animaciones suaves
+- Tema oscuro (`#0B0F19`)
+- Paleta indigo / network
+- Cards como “nodos”
+- Grid sutil de fondo
+- Animaciones Framer Motion
+- Toast, modal de edición, stats expandibles
+- Lista de links en localStorage
 
 ## Cómo correr
 
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. (Opcional) Configurar URL del backend
-# Crea un archivo .env:
-# VITE_API_URL=http://localhost:8000
-
-# 3. Iniciar
 npm run dev
 ```
 
-Abre `http://localhost:5173`
+Backend esperado en `http://localhost:8000`  
+(o configura `VITE_API_URL` en un `.env`)
 
 ## Funcionalidades
 
-| Página | Qué hace |
-|--------|----------|
-| `/` | Crear enlaces cortos (con slug opcional) |
-| `/manage` | Buscar, editar slug, editar destino, ver analytics |
-
-El `edit_token` se guarda automáticamente en `localStorage` al crear un enlace.
-
-## Requisitos del backend
-
-El backend debe estar corriendo en `http://localhost:8000` (o la URL que configures en `.env`).
-
-Endpoints usados:
-- `POST /api/v1/urls/shorten`
-- `GET /api/v1/urls/{slug}/info`
-- `PATCH /api/v1/urls/{slug}/slug`
-- `PATCH /api/v1/urls/{slug}/destination`
-- `DELETE /api/v1/urls/{slug}`
-- `GET /api/v1/analytics/{slug}`
-
-## Build de producción
-
-```bash
-npm run build
-npm run preview
-```
+- Acortar URL (con slug opcional)
+- Lista de links creados (persistente en el navegador)
+- Copiar, editar slug, editar destino, eliminar
+- Panel de analytics por link
+- Toast de éxito / error
