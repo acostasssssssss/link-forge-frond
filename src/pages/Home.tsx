@@ -7,6 +7,7 @@ import { Toast, type ToastType } from '../components/ui/Toast'
 import { UrlCard } from '../components/UrlCard'
 import { EditModal } from '../components/EditModal'
 import { QrModal } from '../components/QrModal'
+import { TokenModal } from '../components/TokenModal'
 import { useLocalLinks } from '../hooks/useLocalLinks'
 import {
   shortenUrl,
@@ -34,6 +35,7 @@ export function Home() {
   }>({ open: false, mode: 'slug', link: null })
 
   const [qrLink, setQrLink] = useState<ShortenResponse | null>(null)
+  const [tokenModalLink, setTokenModalLink] = useState<ShortenResponse | null>(null)
 
   const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({
     message: '',
@@ -72,10 +74,19 @@ export function Home() {
         target_url: target,
         custom_slug: showSlug && customSlug.trim() ? customSlug.trim() : undefined,
       })
-      setLastResult(data)
-      addLink(data)
+      // Si el backend no manda expires_at, asumir 6 días
+      const withExpiry: ShortenResponse = {
+        ...data,
+        expires_at:
+          data.expires_at ||
+          new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+      setLastResult(withExpiry)
+      addLink(withExpiry)
       setUrl('')
       setCustomSlug('')
+      setShowSlug(false)
+      setTokenModalLink(withExpiry) // Modal: guardar token + aviso 6 días
       showToast('Link forjado con éxito', 'success')
     } catch (err: unknown) {
       const msg =
@@ -284,17 +295,21 @@ export function Home() {
           </motion.div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {links.map((link, i) => (
-              <UrlCard
-                key={link.slug}
-                link={link}
-                index={i}
-                onEditSlug={(l) => setModal({ open: true, mode: 'slug', link: l })}
-                onEditDest={(l) => setModal({ open: true, mode: 'destination', link: l })}
-                onDelete={handleDelete}
-                onShowQr={(l) => setQrLink(l)}
-              />
-            ))}
+            <AnimatePresence mode="sync">
+              {links
+                .filter((link) => link?.slug)
+                .map((link, i) => (
+                  <UrlCard
+                    key={link.slug}
+                    link={link}
+                    index={i}
+                    onEditSlug={(l) => setModal({ open: true, mode: 'slug', link: l })}
+                    onEditDest={(l) => setModal({ open: true, mode: 'destination', link: l })}
+                    onDelete={handleDelete}
+                    onShowQr={(l) => setQrLink(l)}
+                  />
+                ))}
+            </AnimatePresence>
           </div>
         )}
       </section>
@@ -312,6 +327,12 @@ export function Home() {
         open={!!qrLink}
         link={qrLink}
         onClose={() => setQrLink(null)}
+      />
+
+      <TokenModal
+        open={!!tokenModalLink}
+        link={tokenModalLink}
+        onClose={() => setTokenModalLink(null)}
       />
 
       <Toast
