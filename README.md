@@ -8,7 +8,7 @@ Diseño oscuro inspirado en redes y nodos, pensado para uso libre (open source),
 ### Acortado de URLs
 - Crear links cortos a partir de cualquier URL
 - Slug personalizado opcional (ej: `promo-verano`)
-- Respuesta inmediata con el link corto listo para copiar
+- Respuesta inmediata con el link corto listo para copiar x
 
 ### Privacidad sin cuentas
 - **Sin login**: cualquiera puede usarlo
