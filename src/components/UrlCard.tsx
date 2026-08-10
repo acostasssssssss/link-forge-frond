@@ -8,9 +8,13 @@ import {
   Trash2,
   BarChart3,
   ExternalLink,
+  QrCode,
+  History,
 } from 'lucide-react'
-import type { ShortenResponse, Analytics } from '../lib/api'
-import { getAnalytics } from '../lib/api'
+import type { ShortenResponse, URLStats, LinkHistory } from '../lib/api'
+import { getAnalytics, getHistory } from '../lib/api'
+import { AnalyticsPanel } from './AnalyticsPanel'
+import { HistoryPanel } from './HistoryPanel'
 import { cn } from '../lib/utils'
 
 interface UrlCardProps {
@@ -18,14 +22,26 @@ interface UrlCardProps {
   onEditSlug: (link: ShortenResponse) => void
   onEditDest: (link: ShortenResponse) => void
   onDelete: (link: ShortenResponse) => void
+  onShowQr: (link: ShortenResponse) => void
   index: number
 }
 
-export function UrlCard({ link, onEditSlug, onEditDest, onDelete, index }: UrlCardProps) {
+type Panel = 'stats' | 'history' | null
+
+export function UrlCard({
+  link,
+  onEditSlug,
+  onEditDest,
+  onDelete,
+  onShowQr,
+  index,
+}: UrlCardProps) {
   const [copied, setCopied] = useState(false)
-  const [showStats, setShowStats] = useState(false)
-  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [panel, setPanel] = useState<Panel>(null)
+  const [stats, setStats] = useState<URLStats | null>(null)
+  const [history, setHistory] = useState<LinkHistory | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const copy = async () => {
     await navigator.clipboard.writeText(link.short_url)
@@ -34,23 +50,45 @@ export function UrlCard({ link, onEditSlug, onEditDest, onDelete, index }: UrlCa
   }
 
   const toggleStats = async () => {
-    if (showStats) {
-      setShowStats(false)
+    if (panel === 'stats') {
+      setPanel(null)
       return
     }
-    setShowStats(true)
-    if (!analytics) {
+    setPanel('stats')
+    if (!stats) {
       setLoadingStats(true)
       try {
         const data = await getAnalytics(link.slug)
-        setAnalytics(data)
+        setStats(data)
       } catch {
-        setAnalytics({ slug: link.slug, total_clicks: 0 })
+        setStats({ total_clicks: 0 })
       } finally {
         setLoadingStats(false)
       }
     }
   }
+
+  const toggleHistory = async () => {
+    if (panel === 'history') {
+      setPanel(null)
+      return
+    }
+    setPanel('history')
+    if (!history) {
+      setLoadingHistory(true)
+      try {
+        const data = await getHistory(link.slug)
+        setHistory(data)
+      } catch {
+        setHistory({ slug_history: [], destination_history: [] })
+      } finally {
+        setLoadingHistory(false)
+      }
+    }
+  }
+
+  const expired =
+    link.expires_at && new Date(link.expires_at).getTime() < Date.now()
 
   return (
     <motion.div
@@ -63,24 +101,27 @@ export function UrlCard({ link, onEditSlug, onEditDest, onDelete, index }: UrlCa
         'hover:border-[#6366F1]/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.12)]'
       )}
     >
-      {/* Top badges */}
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="rounded-md bg-[#1E2538] px-2 py-0.5 text-[11px] font-medium text-[#94A3B8] font-mono">
           {link.redirect_type || '307'}
         </span>
         <span
           className={cn(
             'rounded-md px-2 py-0.5 text-[11px] font-medium',
-            link.is_active
+            link.is_active && !expired
               ? 'bg-emerald-500/10 text-[#10B981]'
               : 'bg-neutral-500/10 text-[#94A3B8]'
           )}
         >
-          {link.is_active ? 'Activo' : 'Inactivo'}
+          {expired ? 'Expirado' : link.is_active ? 'Activo' : 'Inactivo'}
         </span>
+        {link.expires_at && !expired && (
+          <span className="rounded-md bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] text-[#F59E0B]">
+            Expira {new Date(link.expires_at).toLocaleDateString('es')}
+          </span>
+        )}
       </div>
 
-      {/* Slug */}
       <a
         href={link.short_url}
         target="_blank"
@@ -91,19 +132,16 @@ export function UrlCard({ link, onEditSlug, onEditDest, onDelete, index }: UrlCa
         <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </a>
 
-      {/* Destination */}
       <p className="mb-4 text-sm text-[#94A3B8] truncate" title={link.target_url}>
         → {link.target_url}
       </p>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <ActionBtn onClick={copy} title="Copiar">
-          {copied ? (
-            <Check className="h-4 w-4 text-[#10B981]" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
+          {copied ? <Check className="h-4 w-4 text-[#10B981]" /> : <Copy className="h-4 w-4" />}
+        </ActionBtn>
+        <ActionBtn onClick={() => onShowQr(link)} title="Código QR">
+          <QrCode className="h-4 w-4" />
         </ActionBtn>
         <ActionBtn onClick={() => onEditSlug(link)} title="Editar slug">
           <Pencil className="h-4 w-4" />
@@ -111,43 +149,36 @@ export function UrlCard({ link, onEditSlug, onEditDest, onDelete, index }: UrlCa
         <ActionBtn onClick={() => onEditDest(link)} title="Editar destino">
           <Target className="h-4 w-4" />
         </ActionBtn>
-        <ActionBtn onClick={toggleStats} title="Stats" active={showStats}>
+        <ActionBtn onClick={toggleStats} title="Analytics" active={panel === 'stats'}>
           <BarChart3 className="h-4 w-4" />
+        </ActionBtn>
+        <ActionBtn onClick={toggleHistory} title="Historial" active={panel === 'history'}>
+          <History className="h-4 w-4" />
         </ActionBtn>
         <ActionBtn onClick={() => onDelete(link)} title="Eliminar" danger>
           <Trash2 className="h-4 w-4" />
         </ActionBtn>
       </div>
 
-      {/* Stats panel */}
       <AnimatePresence>
-        {showStats && (
+        {panel === 'stats' && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-4 border-t border-[#2D3748] pt-4">
-              {loadingStats ? (
-                <p className="text-sm text-[#94A3B8]">Cargando…</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-[#1E2538] p-3">
-                    <p className="text-2xl font-bold tabular-nums text-[#F1F5F9]">
-                      {analytics?.total_clicks ?? 0}
-                    </p>
-                    <p className="text-xs text-[#94A3B8]">Clicks totales</p>
-                  </div>
-                  <div className="rounded-lg bg-[#1E2538] p-3">
-                    <p className="text-2xl font-bold tabular-nums text-[#F1F5F9]">
-                      {analytics?.unique_clicks ?? '—'}
-                    </p>
-                    <p className="text-xs text-[#94A3B8]">Clicks únicos</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <AnalyticsPanel stats={stats} loading={loadingStats} />
+          </motion.div>
+        )}
+        {panel === 'history' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <HistoryPanel history={history} loading={loadingHistory} />
           </motion.div>
         )}
       </AnimatePresence>

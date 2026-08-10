@@ -6,17 +6,19 @@ import { Input } from '../components/ui/Input'
 import { Toast, type ToastType } from '../components/ui/Toast'
 import { UrlCard } from '../components/UrlCard'
 import { EditModal } from '../components/EditModal'
+import { QrModal } from '../components/QrModal'
 import { useLocalLinks } from '../hooks/useLocalLinks'
 import {
   shortenUrl,
   updateSlug,
   updateDestination,
   deleteUrl,
+  getUrlInfo,
   type ShortenResponse,
 } from '../lib/api'
 
 export function Home() {
-  const { links, addLink, updateLink, removeLink, getToken } = useLocalLinks()
+  const { links, addLink, updateLink, removeLink, getToken, loadingList } = useLocalLinks()
 
   const [url, setUrl] = useState('')
   const [customSlug, setCustomSlug] = useState('')
@@ -30,6 +32,8 @@ export function Home() {
     mode: 'slug' | 'destination'
     link: ShortenResponse | null
   }>({ open: false, mode: 'slug', link: null })
+
+  const [qrLink, setQrLink] = useState<ShortenResponse | null>(null)
 
   const [toast, setToast] = useState<{ message: string; type: ToastType; visible: boolean }>({
     message: '',
@@ -89,12 +93,25 @@ export function Home() {
     const oldSlug = modal.link.slug
 
     if (modal.mode === 'slug') {
-      const data = await updateSlug(oldSlug, value, token)
-      updateLink(oldSlug, { ...modal.link, ...data })
+      await updateSlug(oldSlug, value, token)
+      // Refrescar info completa (el PATCH puede devolver solo un dict)
+      const fresh = await getUrlInfo(value)
+      updateLink(oldSlug, {
+        ...modal.link,
+        ...fresh,
+        edit_token: token,
+        slug: fresh.slug || value,
+      })
       showToast('Slug actualizado', 'success')
     } else {
-      const data = await updateDestination(oldSlug, value, token)
-      updateLink(oldSlug, { ...modal.link, ...data })
+      await updateDestination(oldSlug, value, token)
+      const fresh = await getUrlInfo(oldSlug)
+      updateLink(oldSlug, {
+        ...modal.link,
+        ...fresh,
+        edit_token: token,
+        target_url: fresh.target_url || value,
+      })
       showToast('Destino actualizado', 'success')
     }
   }
@@ -275,6 +292,7 @@ export function Home() {
                 onEditSlug={(l) => setModal({ open: true, mode: 'slug', link: l })}
                 onEditDest={(l) => setModal({ open: true, mode: 'destination', link: l })}
                 onDelete={handleDelete}
+                onShowQr={(l) => setQrLink(l)}
               />
             ))}
           </div>
@@ -288,6 +306,12 @@ export function Home() {
         token={modal.link ? getToken(modal.link.slug) : ''}
         onClose={() => setModal((m) => ({ ...m, open: false }))}
         onSave={handleEditSave}
+      />
+
+      <QrModal
+        open={!!qrLink}
+        link={qrLink}
+        onClose={() => setQrLink(null)}
       />
 
       <Toast
