@@ -43,6 +43,8 @@ export interface URLStats {
   top_countries?: { country: string; count: number }[]
 }
 
+export type Analytics = URLStats
+
 /** Historial de renombres de slug (SlugHistory) */
 export interface SlugHistoryEntry {
   id?: string
@@ -106,17 +108,37 @@ export const listUrls = async (): Promise<URLListItem[]> => {
   return []
 }
 
+export interface EditSlugResponse {
+  message?: string
+  old_slug?: string
+  new_slug: string
+  short_url: string
+  slug: string
+}
+
+export interface EditDestinationResponse {
+  message?: string
+  slug?: string
+  old_target?: string
+  new_target: string
+  target_url: string
+}
+
 /** PATCH /api/v1/urls/{slug}/slug */
 export const updateSlug = async (
   slug: string,
   newSlug: string,
   editToken: string
-): Promise<ShortenResponse | Record<string, unknown>> => {
+): Promise<EditSlugResponse> => {
   const res = await api.patch(`/api/v1/urls/${slug}/slug`, {
     new_slug: newSlug,
     edit_token: editToken,
   })
-  return res.data
+  return {
+    ...res.data,
+    slug: res.data.new_slug || res.data.slug || newSlug,
+    short_url: res.data.short_url || '',
+  }
 }
 
 /** PATCH /api/v1/urls/{slug}/destination */
@@ -124,12 +146,15 @@ export const updateDestination = async (
   slug: string,
   newTargetUrl: string,
   editToken: string
-): Promise<ShortenResponse | Record<string, unknown>> => {
+): Promise<EditDestinationResponse> => {
   const res = await api.patch(`/api/v1/urls/${slug}/destination`, {
     new_target_url: newTargetUrl,
     edit_token: editToken,
   })
-  return res.data
+  return {
+    ...res.data,
+    target_url: res.data.new_target || res.data.target_url || newTargetUrl,
+  }
 }
 
 /**

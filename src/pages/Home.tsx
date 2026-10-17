@@ -17,9 +17,8 @@ import {
   getUrlInfo,
   type ShortenResponse,
 } from '../lib/api'
-
 export function Home() {
-  const { links, addLink, updateLink, removeLink, getToken, loadingList } = useLocalLinks()
+  const { links, addLink, updateLink, removeLink, getToken } = useLocalLinks()
 
   const [url, setUrl] = useState('')
   const [customSlug, setCustomSlug] = useState('')

@@ -101,7 +101,7 @@ export function UrlCard({
         x: 24,
         transition: { duration: 0.28, ease: 'easeIn' },
       }}
-      transition={{ duration: 0.25, layout: { duration: 0.25 } }}
+      transition={{ duration: 0.25, delay: (index || 0) * 0.03, layout: { duration: 0.25 } }}
       className={cn(
         'group rounded-xl border border-[#2D3748] bg-[#151B2B] p-5',
         'transition-colors duration-200 ease-out',
