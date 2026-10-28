@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Globe, Link2, ArrowRight, Sparkles } from 'lucide-react'
+import { Globe, Link2, ArrowRight, Sparkles, ShieldCheck, Clock, Infinity as InfinityIcon, UserCheck } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Toast, type ToastType } from '../components/ui/Toast'
@@ -20,7 +21,7 @@ import {
 } from '../lib/api'
 
 export function Home() {
-  const { isAuthenticated } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const { links, addLink, updateLink, removeLink, getToken } = useLocalLinks()
 
   const [url, setUrl] = useState('')
@@ -168,7 +169,7 @@ export function Home() {
                 evolucionan
               </span>
             </h1>
-            <p className="mx-auto mb-10 max-w-md text-[#94A3B8]">
+            <p className="mx-auto mb-8 max-w-md text-[#94A3B8]">
               Acorta, renombra y cambia el destino sin perder analytics.
               Ideal para campañas y redes.
             </p>
@@ -180,6 +181,34 @@ export function Home() {
             transition={{ duration: 0.45, delay: 0.1 }}
           >
             <div className="rounded-2xl border border-[#2D3748] bg-[#151B2B] p-5 sm:p-7 shadow-2xl shadow-black/30">
+              {/* Indicador de modo activo: Cuenta permanente vs Modo libre */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#2D3748]/80 bg-[#0B0F19]/60 px-3.5 py-2.5 text-left text-xs">
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-2 text-[#10B981]">
+                    <InfinityIcon className="h-4 w-4 shrink-0" />
+                    <span>
+                      <strong>Modo Cuenta Activo:</strong> Tus links son <strong>permanentes</strong> y privados en tu espacio ({user?.username || user?.email}).
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-[#94A3B8]">
+                      <Clock className="h-4 w-4 shrink-0 text-[#F59E0B]" />
+                      <span>
+                        <strong>Modo Libre:</strong> Los links duran <strong>6 días</strong> en este navegador.
+                      </span>
+                    </div>
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1 font-medium text-[#818CF8] hover:text-[#6366F1] transition-colors"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Hazlos permanentes →
+                    </Link>
+                  </>
+                )}
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <Input
                   id="url"
@@ -272,12 +301,23 @@ export function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-20">
-        <div className="mb-6 flex items-center gap-2">
-          <span className="text-lg">🔥</span>
-          <h2 className="text-xl font-semibold text-[#F1F5F9]">Tus links</h2>
-          {links.length > 0 && (
-            <span className="rounded-full bg-[#1E2538] px-2.5 py-0.5 text-xs text-[#94A3B8]">
-              {links.length}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🔗</span>
+            <h2 className="text-xl font-semibold text-[#F1F5F9]">
+              {isAuthenticated ? 'Mis links permanentes' : 'Tus links recientes'}
+            </h2>
+            {links.length > 0 && (
+              <span className="rounded-full bg-[#1E2538] px-2.5 py-0.5 text-xs text-[#94A3B8]">
+                {links.length}
+              </span>
+            )}
+          </div>
+
+          {isAuthenticated && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-3 py-1 text-xs font-medium text-[#10B981]">
+              <UserCheck className="h-3.5 w-3.5" />
+              Sincronizados en tu cuenta
             </span>
           )}
         </div>
@@ -286,7 +326,7 @@ export function Home() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#2D3748] py-16"
+            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#2D3748] py-16 px-4 text-center"
           >
             <motion.div
               animate={{ y: [0, -6, 0] }}
