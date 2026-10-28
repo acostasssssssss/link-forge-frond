@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { ShortenResponse } from '../lib/api'
+import { listUrls, type ShortenResponse, type URLListItem } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 
 const STORAGE_KEY = 'linkforge_links'
 const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
-/** Normaliza un link guardado para que siempre tenga los campos mínimos */
-function normalize(raw: Partial<ShortenResponse> & { code?: string }): ShortenResponse | null {
+/** Normaliza un link guardado o recibido del backend */
+function normalize(
+  raw: Partial<ShortenResponse & URLListItem> & { code?: string }
+): ShortenResponse | null {
   const slug = raw.slug || raw.code
   if (!slug) return null
 
@@ -27,12 +30,16 @@ function normalize(raw: Partial<ShortenResponse> & { code?: string }): ShortenRe
   }
 }
 
-/** Solo links de ESTE navegador (privacidad sin login) */
+/**
+ * Si el usuario inició sesión: sincroniza sus links permanentes desde PostgreSQL (GET /api/v1/urls/).
+ * Si no inició sesión: mantiene el comportamiento local en localStorage (modo libre de 6 días).
+ */
 export function useLocalLinks() {
+  const { isAuthenticated, user } = useAuth()
   const [links, setLinks] = useState<ShortenResponse[]>([])
   const [loadingList, setLoadingList] = useState(true)
 
-  useEffect(() => {
+  const loadLocalLinks = useCallback(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
@@ -41,20 +48,54 @@ export function useLocalLinks() {
           .map((item) => normalize(item as Partial<ShortenResponse>))
           .filter((x): x is ShortenResponse => x !== null)
         setLinks(normalized)
-        // Re-guardar normalizado para próximas cargas
         localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
+      } else {
+        setLinks([])
       }
     } catch {
-      /* ignore */
+      setLinks([])
     } finally {
       setLoadingList(false)
     }
   }, [])
 
-  const save = useCallback((next: ShortenResponse[]) => {
-    setLinks(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  }, [])
+  useEffect(() => {
+    let cancelled = false
+    setLoadingList(true)
+
+    if (isAuthenticated && user?.id) {
+      listUrls()
+        .then((remoteItems) => {
+          if (cancelled) return
+          const normalized = remoteItems
+            .map((item) => normalize(item))
+            .filter((x): x is ShortenResponse => x !== null)
+          setLinks(normalized)
+        })
+        .catch(() => {
+          if (!cancelled) setLinks([])
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingList(false)
+        })
+    } else {
+      loadLocalLinks()
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id, loadLocalLinks])
+
+  const save = useCallback(
+    (next: ShortenResponse[]) => {
+      setLinks(next)
+      if (!isAuthenticated) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      }
+    },
+    [isAuthenticated]
+  )
 
   const addLink = useCallback(
     (link: ShortenResponse) => {

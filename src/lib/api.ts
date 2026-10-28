@@ -1,11 +1,51 @@
 import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+export const AUTH_TOKEN_KEY = 'linkforge_auth_token'
+export const AUTH_USER_KEY = 'linkforge_auth_user'
 
 export const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
+
+// Adjuntar automáticamente el JWT si el usuario inició sesión
+api.interceptors.request.use((config) => {
+  if (typeof localStorage !== 'undefined') {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
+
+// ─── Auth Types ─────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string
+  email: string
+  username?: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface RegisterRequest {
+  email: string
+  password: string
+  username?: string
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+  user: AuthUser
+}
 
 // ─── Types (alineados con tu backend) ───────────────────────────────────────
 
@@ -84,7 +124,27 @@ export interface URLListResponse {
   total?: number
 }
 
-// ─── Endpoints ──────────────────────────────────────────────────────────────
+// ─── Auth Endpoints ─────────────────────────────────────────────────────────
+
+/** POST /api/v1/auth/register */
+export const registerUser = async (data: RegisterRequest): Promise<TokenResponse> => {
+  const res = await api.post<TokenResponse>('/api/v1/auth/register', data)
+  return res.data
+}
+
+/** POST /api/v1/auth/login */
+export const loginUser = async (data: LoginRequest): Promise<TokenResponse> => {
+  const res = await api.post<TokenResponse>('/api/v1/auth/login', data)
+  return res.data
+}
+
+/** GET /api/v1/auth/me */
+export const getCurrentUser = async (): Promise<AuthUser> => {
+  const res = await api.get<AuthUser>('/api/v1/auth/me')
+  return res.data
+}
+
+// ─── URL Endpoints ──────────────────────────────────────────────────────────
 
 /** POST /api/v1/urls/shorten */
 export const shortenUrl = async (data: ShortenRequest): Promise<ShortenResponse> => {
@@ -98,7 +158,7 @@ export const getUrlInfo = async (slug: string): Promise<UrlInfo> => {
   return res.data
 }
 
-/** GET /api/v1/urls/ — lista todos los links activos */
+/** GET /api/v1/urls/ — lista todos los links activos de la cuenta */
 export const listUrls = async (): Promise<URLListItem[]> => {
   const res = await api.get<URLListResponse | URLListItem[]>('/api/v1/urls/')
   const data = res.data
@@ -128,11 +188,11 @@ export interface EditDestinationResponse {
 export const updateSlug = async (
   slug: string,
   newSlug: string,
-  editToken: string
+  editToken?: string
 ): Promise<EditSlugResponse> => {
   const res = await api.patch(`/api/v1/urls/${slug}/slug`, {
     new_slug: newSlug,
-    edit_token: editToken,
+    ...(editToken ? { edit_token: editToken } : {}),
   })
   return {
     ...res.data,
@@ -145,11 +205,11 @@ export const updateSlug = async (
 export const updateDestination = async (
   slug: string,
   newTargetUrl: string,
-  editToken: string
+  editToken?: string
 ): Promise<EditDestinationResponse> => {
   const res = await api.patch(`/api/v1/urls/${slug}/destination`, {
     new_target_url: newTargetUrl,
-    edit_token: editToken,
+    ...(editToken ? { edit_token: editToken } : {}),
   })
   return {
     ...res.data,
@@ -159,11 +219,11 @@ export const updateDestination = async (
 
 /**
  * DELETE /api/v1/urls/{slug}?edit_token=...
- * (tu backend recibe edit_token como query param)
+ * (si el usuario está autenticado, edit_token es opcional)
  */
-export const deleteUrl = async (slug: string, editToken: string): Promise<void> => {
+export const deleteUrl = async (slug: string, editToken?: string): Promise<void> => {
   await api.delete(`/api/v1/urls/${slug}`, {
-    params: { edit_token: editToken },
+    params: editToken ? { edit_token: editToken } : undefined,
   })
 }
 
@@ -177,8 +237,6 @@ export const getAnalytics = async (slug: string): Promise<URLStats> => {
  * Historial combinado.
  * GET /api/v1/urls/{slug}/history
  * → { slug_history: [...], destination_history: [...] }
- *
- * Si aún no existe el endpoint en el backend, la UI muestra empty state.
  */
 export const getHistory = async (slug: string): Promise<LinkHistory> => {
   const empty: LinkHistory = { slug_history: [], destination_history: [] }

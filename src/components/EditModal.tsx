@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Eye, EyeOff } from 'lucide-react'
+import { X, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
+import { useAuth } from '../context/AuthContext'
 import type { ShortenResponse } from '../lib/api'
 
 interface EditModalProps {
@@ -15,6 +16,7 @@ interface EditModalProps {
 }
 
 export function EditModal({ open, mode, link, token: initialToken, onClose, onSave }: EditModalProps) {
+  const { isAuthenticated } = useAuth()
   const [value, setValue] = useState('')
   const [token, setToken] = useState(initialToken)
   const [showToken, setShowToken] = useState(false)
@@ -31,7 +33,7 @@ export function EditModal({ open, mode, link, token: initialToken, onClose, onSa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!value.trim() || !token.trim()) {
+    if (!value.trim() || (!isAuthenticated && !token.trim())) {
       setError('Completa todos los campos')
       return
     }
@@ -88,22 +90,29 @@ export function EditModal({ open, mode, link, token: initialToken, onClose, onSa
                 hint={mode === 'slug' ? 'Solo letras, números y guiones' : undefined}
               />
 
-              <div className="relative">
-                <Input
-                  label="Edit token"
-                  type={showToken ? 'text' : 'password'}
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Token de edición"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowToken(!showToken)}
-                  className="absolute right-3 top-[38px] text-[#94A3B8] hover:text-[#F1F5F9]"
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 text-xs text-[#10B981]">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>Autorizado automáticamente con tu sesión activa</span>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    label="Edit token"
+                    type={showToken ? 'text' : 'password'}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Token de edición"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-3 top-[38px] text-[#94A3B8] hover:text-[#F1F5F9]"
+                  >
+                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              )}
 
               {error && <p className="text-sm text-[#EF4444]">{error}</p>}
 

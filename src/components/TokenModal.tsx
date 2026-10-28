@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { KeyRound, Copy, Check, AlertTriangle, Clock, X } from 'lucide-react'
+import { KeyRound, Copy, Check, AlertTriangle, Clock, ShieldCheck, X } from 'lucide-react'
 import { Button } from './ui/Button'
+import { useAuth } from '../context/AuthContext'
 import type { ShortenResponse } from '../lib/api'
 
 interface TokenModalProps {
@@ -11,6 +12,7 @@ interface TokenModalProps {
 }
 
 export function TokenModal({ open, link, onClose }: TokenModalProps) {
+  const { isAuthenticated } = useAuth()
   const [copiedToken, setCopiedToken] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState(false)
 
@@ -34,7 +36,7 @@ export function TokenModal({ open, link, onClose }: TokenModalProps) {
         month: 'long',
         year: 'numeric',
       })
-    : 'en 6 días'
+    : null
 
   return (
     <AnimatePresence>
@@ -68,7 +70,9 @@ export function TokenModal({ open, link, onClose }: TokenModalProps) {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-[#F1F5F9]">Link forjado</h2>
-                <p className="text-sm text-[#94A3B8]">Guarda tu token de edición</p>
+                <p className="text-sm text-[#94A3B8]">
+                  {isAuthenticated ? 'Guardado en tu cuenta' : 'Guarda tu token de edición'}
+                </p>
               </div>
             </div>
 
@@ -97,50 +101,63 @@ export function TokenModal({ open, link, onClose }: TokenModalProps) {
             </div>
 
             {/* Token */}
-            <div className="mb-4">
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-[#64748B]">
-                Token de edición
-              </p>
-              <div className="flex items-center gap-2 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/5 px-3 py-2.5">
-                <code className="flex-1 break-all font-mono text-sm text-[#FBBF24]">
-                  {link.edit_token}
-                </code>
-                <button
-                  onClick={copyToken}
-                  className="shrink-0 rounded-lg p-1.5 text-[#94A3B8] hover:bg-[#F59E0B]/15 hover:text-[#FBBF24] transition-colors"
-                  title="Copiar token"
-                >
-                  {copiedToken ? (
-                    <Check className="h-4 w-4 text-[#10B981]" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
+            {link.edit_token && (
+              <div className="mb-4">
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-[#64748B]">
+                  Token de edición
+                </p>
+                <div className="flex items-center gap-2 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/5 px-3 py-2.5">
+                  <code className="flex-1 break-all font-mono text-sm text-[#FBBF24]">
+                    {link.edit_token}
+                  </code>
+                  <button
+                    onClick={copyToken}
+                    className="shrink-0 rounded-lg p-1.5 text-[#94A3B8] hover:bg-[#F59E0B]/15 hover:text-[#FBBF24] transition-colors"
+                    title="Copiar token"
+                  >
+                    {copiedToken ? (
+                      <Check className="h-4 w-4 text-[#10B981]" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Warnings */}
+            {/* Warnings / Account Info */}
             <div className="mb-5 space-y-2">
-              <div className="flex gap-2.5 rounded-xl border border-[#F59E0B]/20 bg-[#F59E0B]/5 px-3 py-2.5">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#F59E0B]" />
-                <p className="text-xs leading-relaxed text-[#FBBF24]/90">
-                  <strong>Guarda este token.</strong> Lo necesitas para editar el slug, cambiar el
-                  destino o eliminar el link. Si lo pierdes, no podrás modificarlo.
-                </p>
-              </div>
-              <div className="flex gap-2.5 rounded-xl border border-[#6366F1]/20 bg-[#6366F1]/5 px-3 py-2.5">
-                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#818CF8]" />
-                <p className="text-xs leading-relaxed text-[#A5B4FC]">
-                  Este link <strong>expira en 6 días</strong>
-                  {link.expires_at ? ` (${expiresLabel})` : ''}. Después deberás crear uno nuevo.
-                  Mientras uses este sistema no cierras sesión, tus links seguirán funcionando.
-                  pero no se mostrarán en tu historial. ya que se guarda temporar en el navegador.
-                </p>
-              </div>
+              {isAuthenticated && !link.expires_at ? (
+                <div className="flex gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#10B981]" />
+                  <p className="text-xs leading-relaxed text-emerald-300/90">
+                    <strong>Enlace permanente.</strong> Al estar en tu cuenta, este link no caduca a los
+                    6 días y puedes editarlo o eliminarlo desde cualquier navegador.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2.5 rounded-xl border border-[#F59E0B]/20 bg-[#F59E0B]/5 px-3 py-2.5">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#F59E0B]" />
+                    <p className="text-xs leading-relaxed text-[#FBBF24]/90">
+                      <strong>Guarda este token.</strong> Lo necesitas para editar el slug, cambiar el
+                      destino o eliminar el link. Si lo pierdes, no podrás modificarlo.
+                    </p>
+                  </div>
+                  <div className="flex gap-2.5 rounded-xl border border-[#6366F1]/20 bg-[#6366F1]/5 px-3 py-2.5">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#818CF8]" />
+                    <p className="text-xs leading-relaxed text-[#A5B4FC]">
+                      Este link <strong>expira en 6 días</strong>
+                      {expiresLabel ? ` (${expiresLabel})` : ''}. Inicia sesión o crea una cuenta si
+                      quieres que tus links sean permanentes.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <Button onClick={onClose} className="w-full" size="lg">
-              Entendido, ya lo guardé
+              {isAuthenticated ? 'Listo' : 'Entendido, ya lo guardé'}
             </Button>
           </motion.div>
         </div>

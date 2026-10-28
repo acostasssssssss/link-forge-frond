@@ -122,11 +122,15 @@ export function UrlCard({
         >
           {expired ? 'Expirado' : link.is_active ? 'Activo' : 'Inactivo'}
         </span>
-        {link.expires_at && !expired && (
+        {link.expires_at && !expired ? (
           <span className="rounded-md bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] text-[#F59E0B]">
             Expira {new Date(link.expires_at).toLocaleDateString('es')}
           </span>
-        )}
+        ) : !link.expires_at ? (
+          <span className="rounded-md bg-[#6366F1]/15 px-2 py-0.5 text-[11px] font-medium text-[#818CF8]">
+            Permanente
+          </span>
+        ) : null}
       </div>
 
       <a

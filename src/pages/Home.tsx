@@ -9,6 +9,7 @@ import { EditModal } from '../components/EditModal'
 import { QrModal } from '../components/QrModal'
 import { TokenModal } from '../components/TokenModal'
 import { useLocalLinks } from '../hooks/useLocalLinks'
+import { useAuth } from '../context/AuthContext'
 import {
   shortenUrl,
   updateSlug,
@@ -17,7 +18,9 @@ import {
   getUrlInfo,
   type ShortenResponse,
 } from '../lib/api'
+
 export function Home() {
+  const { isAuthenticated } = useAuth()
   const { links, addLink, updateLink, removeLink, getToken } = useLocalLinks()
 
   const [url, setUrl] = useState('')
@@ -73,19 +76,19 @@ export function Home() {
         target_url: target,
         custom_slug: showSlug && customSlug.trim() ? customSlug.trim() : undefined,
       })
-      // Si el backend no manda expires_at, asumir 6 días
+      // Si inició sesión, expires_at es null (permanente); en modo libre expira en 6 días
       const withExpiry: ShortenResponse = {
         ...data,
-        expires_at:
-          data.expires_at ||
-          new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: isAuthenticated
+          ? (data.expires_at ?? null)
+          : data.expires_at || new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
       }
       setLastResult(withExpiry)
       addLink(withExpiry)
       setUrl('')
       setCustomSlug('')
       setShowSlug(false)
-      setTokenModalLink(withExpiry) // Modal: guardar token + aviso 6 días
+      setTokenModalLink(withExpiry)
       showToast('Link forjado con éxito', 'success')
     } catch (err: unknown) {
       const msg =
@@ -103,23 +106,22 @@ export function Home() {
     const oldSlug = modal.link.slug
 
     if (modal.mode === 'slug') {
-      await updateSlug(oldSlug, value, token)
-      // Refrescar info completa (el PATCH puede devolver solo un dict)
+      await updateSlug(oldSlug, value, token || undefined)
       const fresh = await getUrlInfo(value)
       updateLink(oldSlug, {
         ...modal.link,
         ...fresh,
-        edit_token: token,
+        edit_token: token || modal.link.edit_token,
         slug: fresh.slug || value,
       })
       showToast('Slug actualizado', 'success')
     } else {
-      await updateDestination(oldSlug, value, token)
+      await updateDestination(oldSlug, value, token || undefined)
       const fresh = await getUrlInfo(oldSlug)
       updateLink(oldSlug, {
         ...modal.link,
         ...fresh,
-        edit_token: token,
+        edit_token: token || modal.link.edit_token,
         target_url: fresh.target_url || value,
       })
       showToast('Destino actualizado', 'success')
@@ -128,9 +130,11 @@ export function Home() {
 
   const handleDelete = async (link: ShortenResponse) => {
     if (!confirm(`¿Desactivar el link "${link.slug}"?`)) return
-    const token = getToken(link.slug)
+    const token = getToken(link.slug) || link.edit_token
     try {
-      if (token) await deleteUrl(link.slug, token)
+      if (isAuthenticated || token) {
+        await deleteUrl(link.slug, token || undefined)
+      }
       removeLink(link.slug)
       showToast('Link desactivado', 'success')
     } catch {
@@ -317,7 +321,7 @@ export function Home() {
         open={modal.open}
         mode={modal.mode}
         link={modal.link}
-        token={modal.link ? getToken(modal.link.slug) : ''}
+        token={modal.link ? getToken(modal.link.slug) || modal.link.edit_token : ''}
         onClose={() => setModal((m) => ({ ...m, open: false }))}
         onSave={handleEditSave}
       />
